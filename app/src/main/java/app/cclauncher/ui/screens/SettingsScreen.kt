@@ -260,6 +260,7 @@ fun SettingsScreen(
     val accessibilitySettingsHint = stringResource(R.string.accessibility_settings_hint)
     val oneFingerSwipeTitle = stringResource(R.string.one_finger_swipe_actions)
     val twoFingerSwipeTitle = stringResource(R.string.two_finger_swipe_actions)
+    val numberOfSwipeDirectionsTitle = stringResource(R.string.number_of_swipe_directions)
     val uiState by viewModel.settingsState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -656,6 +657,9 @@ fun SettingsScreen(
             } else {
                 schema.fields
                     .filter { field ->
+                        // Individual swipe settings live inside the swipe menus now, so
+                        // searching must not surface them as standalone rows.
+                        if (field.name in swipeActionFields) return@filter false
                         val meta = field.meta ?: return@filter false
                         val categoryTitle = schema.categoryTitleKeys[meta.category]
                             ?.let { stringProvider.getString(it) }
@@ -673,6 +677,17 @@ fun SettingsScreen(
             }
         }
 
+        // The swipe menus are not schema fields, so match them separately. Searching
+        // "number of swipe directions" intentionally matches both menus because the
+        // direction count is configured inside each one.
+        fun matchesSearch(vararg titles: String): Boolean {
+            if (searchTerms.isEmpty()) return true
+            val haystack = titles.joinToString(" ").lowercase()
+            return searchTerms.all { it in haystack }
+        }
+        val oneFingerSwipeMatches = matchesSearch(oneFingerSwipeTitle, numberOfSwipeDirectionsTitle)
+        val twoFingerSwipeMatches = matchesSearch(twoFingerSwipeTitle, numberOfSwipeDirectionsTitle)
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -681,7 +696,9 @@ fun SettingsScreen(
             val grouped = schema.groupedByCategory()
             val categories = schema.orderedCategories()
 
-            if (matchingFieldNames != null && matchingFieldNames.isEmpty()) {
+            if (matchingFieldNames != null && matchingFieldNames.isEmpty() &&
+                !oneFingerSwipeMatches && !twoFingerSwipeMatches
+            ) {
                 item(key = "search_empty") {
                     Column(
                         modifier = Modifier
@@ -723,7 +740,11 @@ fun SettingsScreen(
                             else -> field.name !in swipeActionFields
                         }
                     }
-                if (categoryFields.isEmpty()) continue
+                if (categoryFields.isEmpty()) {
+                    val showSwipeMenus = category == Gestures::class &&
+                        (oneFingerSwipeMatches || twoFingerSwipeMatches)
+                    if (!showSwipeMenus) continue
+                }
 
                 item(key = "cat_${category.qualifiedName ?: category.simpleName}") {
                     val title = schema.categoryTitleKeys[category]
@@ -990,15 +1011,19 @@ fun SettingsScreen(
                             }
                         }
 
-                        if (!searching && category == Gestures::class) {
-                            SettingsItem(
-                                title = oneFingerSwipeTitle,
-                                onClick = { swipeSettingsPage = SwipeSettingsPage.OneFinger },
-                            )
-                            SettingsItem(
-                                title = twoFingerSwipeTitle,
-                                onClick = { swipeSettingsPage = SwipeSettingsPage.TwoFinger },
-                            )
+                        if (category == Gestures::class) {
+                            if (oneFingerSwipeMatches) {
+                                SettingsItem(
+                                    title = oneFingerSwipeTitle,
+                                    onClick = { swipeSettingsPage = SwipeSettingsPage.OneFinger },
+                                )
+                            }
+                            if (twoFingerSwipeMatches) {
+                                SettingsItem(
+                                    title = twoFingerSwipeTitle,
+                                    onClick = { swipeSettingsPage = SwipeSettingsPage.TwoFinger },
+                                )
+                            }
                         }
                     }
                 }
