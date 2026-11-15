@@ -28,6 +28,7 @@ private fun SwipeDirection.defaultAngleDegrees(): Float = when (this) {
 
 fun Modifier.detectSwipeGestures(
     sensitivity: Float = 1.0f,
+    shouldIgnoreConsumed: () -> Boolean = { false },
     onSwipe: (SwipeGesture) -> Unit,
 ): Modifier = this.then(
     Modifier.pointerInput(sensitivity) {
@@ -47,7 +48,9 @@ fun Modifier.detectSwipeGestures(
                 val pressed = event.changes.filter { it.pressed }
                 if (pressed.isEmpty()) break
 
-                if (event.changes.any { it.isConsumed && it.positionChanged() }) {
+                if (!shouldIgnoreConsumed() &&
+                    event.changes.any { it.isConsumed && it.positionChanged() }
+                ) {
                     return@awaitEachGesture
                 }
 
