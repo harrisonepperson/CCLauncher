@@ -977,9 +977,15 @@ fun SettingsScreen(
                         directionCount = directionCount,
                         slices = slices,
                         iconPackName = uiState.selectedIconPack,
+                        showHintsOnHold = config.showHintsOnHold,
                         onDirectionCountChange = { newCount ->
                             coroutineScope.launch {
                                 viewModel.setSwipePieDirectionCount(page.twoFinger, newCount)
+                            }
+                        },
+                        onShowHintsOnHoldChange = { enabled ->
+                            coroutineScope.launch {
+                                viewModel.setSwipePieShowHintsOnHold(page.twoFinger, enabled)
                             }
                         },
                         onSliceActionSelected = { sliceIndex, action ->

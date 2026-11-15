@@ -115,6 +115,10 @@ class SettingsViewModel(
         settingsRepository.setSwipePieDirectionCount(twoFinger, count)
     }
 
+    suspend fun setSwipePieShowHintsOnHold(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowHintsOnHold(twoFinger, enabled)
+    }
+
     suspend fun setSwipePieSliceAction(twoFinger: Boolean, count: Int, index: Int, action: Int) {
         settingsRepository.setSwipePieSliceAction(twoFinger, count, index, action)
     }

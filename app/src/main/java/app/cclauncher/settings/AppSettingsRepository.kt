@@ -139,6 +139,16 @@ class AppSettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun setSwipePieShowHintsOnHold(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showHintsOnHold = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showHintsOnHold = enabled))
+            }
+        }
+    }
+
     suspend fun setSwipePieSliceAction(
         twoFinger: Boolean,
         count: Int,

@@ -794,6 +794,7 @@ data class SwipePieSliceConfig(
 data class SwipePieConfig(
     val directionCount: Int = 4,
     val slices: Map<String, SwipePieSliceConfig> = emptyMap(),
+    val showHintsOnHold: Boolean = false,
 )
 
 data class AppKeyMigration(
