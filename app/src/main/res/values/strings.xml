@@ -238,6 +238,11 @@
     <string name="setting_show_search_web_button_when_no_apps_match_desc">Show \'Search Web\' button when no apps match</string>
     <string name="setting_show_status_bar">Show Status Bar</string>
     <string name="setting_show_web_search_option">Show Web Search Option</string>
+    <string name="number_of_swipe_directions">Number of Swipe Directions</string>
+    <string name="one_finger_swipe_actions">One-Finger Swipe Actions</string>
+    <string name="swipe_action">Swipe Action</string>
+    <string name="tap_a_direction_to_configure">Tap a swipe action from the center to choose its action</string>
+    <string name="two_finger_swipe_actions">Two-Finger Swipe Actions</string>
     <string name="setting_swipe_down_action">Swipe Down Action</string>
     <string name="setting_swipe_down_app">Swipe Down App</string>
     <string name="setting_swipe_left_action">Swipe Left Action</string>

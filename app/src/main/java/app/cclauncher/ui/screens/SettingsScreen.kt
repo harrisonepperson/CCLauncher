@@ -74,6 +74,7 @@ import app.cclauncher.helper.setPlainWallpaperByTheme
 import app.cclauncher.ui.AppSelectionType
 import app.cclauncher.ui.BackHandler
 import app.cclauncher.ui.UiEvent
+import app.cclauncher.ui.SwipePieTarget
 import app.cclauncher.ui.components.ColorPickerDialog
 import app.cclauncher.ui.components.FontPickerDialog
 import app.cclauncher.ui.components.GridSizeWarningDialog
@@ -92,7 +93,9 @@ import app.cclauncher.settings.AppPicker
 import app.cclauncher.settings.AppSettingsSchema
 import app.cclauncher.settings.ColorPicker
 import app.cclauncher.settings.FontPicker
+import app.cclauncher.settings.Gestures
 import app.cclauncher.settings.IconPackPicker
+import app.cclauncher.settings.SwipePieSliceConfig
 import app.cclauncher.ui.components.PageReduceWarningDialog
 import app.cclauncher.ui.components.snackbar.SnackbarManager
 import app.cclauncher.ui.dialogs.ImportExportResultDialog
@@ -120,6 +123,118 @@ private val horizontalSwipeShortcutFields = setOf(
     "swipeRightApp",
 )
 
+private val swipeActionFields = setOf(
+    "swipeUpAction",
+    "swipeUpApp",
+    "swipeDownAction",
+    "swipeDownApp",
+    "swipeLeftAction",
+    "swipeLeftApp",
+    "swipeRightAction",
+    "swipeRightApp",
+    "twoFingerSwipeUpAction",
+    "twoFingerSwipeUpApp",
+    "twoFingerSwipeDownAction",
+    "twoFingerSwipeDownApp",
+    "twoFingerSwipeLeftAction",
+    "twoFingerSwipeLeftApp",
+    "twoFingerSwipeRightAction",
+    "twoFingerSwipeRightApp",
+)
+
+private enum class SwipeSettingsPage(val twoFinger: Boolean) {
+    OneFinger(false),
+    TwoFinger(true),
+}
+
+private data class SwipeFieldRef(
+    val actionField: String,
+    val appField: String,
+)
+
+private val oneFingerSwipeRefs = listOf(
+    SwipeFieldRef("swipeUpAction", "swipeUpApp"),
+    SwipeFieldRef("swipeRightAction", "swipeRightApp"),
+    SwipeFieldRef("swipeDownAction", "swipeDownApp"),
+    SwipeFieldRef("swipeLeftAction", "swipeLeftApp"),
+)
+
+private val twoFingerSwipeRefs = listOf(
+    SwipeFieldRef("twoFingerSwipeUpAction", "twoFingerSwipeUpApp"),
+    SwipeFieldRef("twoFingerSwipeRightAction", "twoFingerSwipeRightApp"),
+    SwipeFieldRef("twoFingerSwipeDownAction", "twoFingerSwipeDownApp"),
+    SwipeFieldRef("twoFingerSwipeLeftAction", "twoFingerSwipeLeftApp"),
+)
+
+private fun existingSwipeRefIndex(count: Int, index: Int): Int? = when (count) {
+    4 -> index
+    6 -> when (index) {
+        0 -> 0
+        3 -> 2
+        else -> null
+    }
+    8 -> when (index) {
+        0 -> 0
+        2 -> 1
+        4 -> 2
+        6 -> 3
+        else -> null
+    }
+    else -> null
+}
+
+private fun swipeFieldAction(settings: AppSettings, field: String): Int = when (field) {
+    "swipeUpAction" -> settings.swipeUpAction
+    "swipeRightAction" -> settings.swipeRightAction
+    "swipeDownAction" -> settings.swipeDownAction
+    "swipeLeftAction" -> settings.swipeLeftAction
+    "twoFingerSwipeUpAction" -> settings.twoFingerSwipeUpAction
+    "twoFingerSwipeRightAction" -> settings.twoFingerSwipeRightAction
+    "twoFingerSwipeDownAction" -> settings.twoFingerSwipeDownAction
+    "twoFingerSwipeLeftAction" -> settings.twoFingerSwipeLeftAction
+    else -> Constants.SwipeAction.NULL
+}
+
+private fun swipeFieldApp(settings: AppSettings, field: String): AppPreference = when (field) {
+    "swipeUpApp" -> settings.swipeUpApp
+    "swipeRightApp" -> settings.swipeRightApp
+    "swipeDownApp" -> settings.swipeDownApp
+    "swipeLeftApp" -> settings.swipeLeftApp
+    "twoFingerSwipeUpApp" -> settings.twoFingerSwipeUpApp
+    "twoFingerSwipeRightApp" -> settings.twoFingerSwipeRightApp
+    "twoFingerSwipeDownApp" -> settings.twoFingerSwipeDownApp
+    "twoFingerSwipeLeftApp" -> settings.twoFingerSwipeLeftApp
+    else -> AppPreference()
+}
+
+private fun buildSwipePieSlices(
+    settings: AppSettings,
+    twoFinger: Boolean,
+): List<SwipePieSliceUi> {
+    val config = if (twoFinger) settings.twoFingerSwipePie else settings.oneFingerSwipePie
+    val count = config.directionCount.takeIf { it == 4 || it == 6 || it == 8 } ?: 4
+    val refs = if (twoFinger) twoFingerSwipeRefs else oneFingerSwipeRefs
+
+    return (0 until count).map { index ->
+        val refIndex = existingSwipeRefIndex(count, index)
+        if (refIndex != null) {
+            val ref = refs[refIndex]
+            SwipePieSliceUi(
+                action = swipeFieldAction(settings, ref.actionField),
+                app = swipeFieldApp(settings, ref.appField),
+                existingActionField = ref.actionField,
+                existingAppField = ref.appField,
+            )
+        } else {
+            val slice = config.slices["$count:$index"] ?: SwipePieSliceConfig()
+            SwipePieSliceUi(
+                action = slice.action,
+                app = slice.app,
+            )
+        }
+    }
+}
+
 private fun appSelectionTypeFor(fieldName: String): AppSelectionType? = when (fieldName) {
     "swipeLeftApp" -> AppSelectionType.SWIPE_LEFT_APP
     "swipeRightApp" -> AppSelectionType.SWIPE_RIGHT_APP
@@ -143,6 +258,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val accessibilitySettingsHint = stringResource(R.string.accessibility_settings_hint)
+    val oneFingerSwipeTitle = stringResource(R.string.one_finger_swipe_actions)
+    val twoFingerSwipeTitle = stringResource(R.string.two_finger_swipe_actions)
     val uiState by viewModel.settingsState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -153,6 +270,10 @@ fun SettingsScreen(
 
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var swipeSettingsPage by rememberSaveable { mutableStateOf<SwipeSettingsPage?>(null) }
+    val swipePageTitle = swipeSettingsPage?.let {
+        if (it.twoFinger) twoFingerSwipeTitle else oneFingerSwipeTitle
+    }
 
     // Dialog states (now track a SettingField instead of KProperty/annotations)
     var showingDialog by remember { mutableStateOf<String?>(null) }
@@ -210,12 +331,16 @@ fun SettingsScreen(
     val refreshTrigger by mainViewModel.refreshTrigger.collectAsState()
 
     BackHandler(onBack = {
-        if (searchOpen) {
-            searchOpen = false
-            searchQuery = ""
-        } else {
-            viewModel.resetUnlockState()
-            onNavigateBack()
+        when {
+            swipeSettingsPage != null -> swipeSettingsPage = null
+            searchOpen -> {
+                searchOpen = false
+                searchQuery = ""
+            }
+            else -> {
+                viewModel.resetUnlockState()
+                onNavigateBack()
+            }
         }
     })
 
@@ -422,23 +547,25 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    if (searchOpen) {
-                        SettingsSearchField(
+                    when {
+                        swipePageTitle != null -> Text(swipePageTitle)
+                        searchOpen -> SettingsSearchField(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it }
                         )
-                    } else {
-                        Text("Settings")
+                        else -> Text("Settings")
                     }
                 },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (searchOpen) {
-                                searchOpen = false
-                                searchQuery = ""
-                            } else {
-                                onNavigateBack()
+                            when {
+                                swipeSettingsPage != null -> swipeSettingsPage = null
+                                searchOpen -> {
+                                    searchOpen = false
+                                    searchQuery = ""
+                                }
+                                else -> onNavigateBack()
                             }
                         }
                     ) {
@@ -449,7 +576,7 @@ fun SettingsScreen(
                     }
                 },
                 actions = {
-                    if (!searchOpen && !effectiveLockState) {
+                    if (!searchOpen && !effectiveLockState && swipeSettingsPage == null) {
                         IconButton(onClick = { searchOpen = true }) {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -584,8 +711,18 @@ fun SettingsScreen(
             }
 
             for (category: KClass<*> in categories) {
+                if (swipeSettingsPage != null) continue
+                val searching = matchingFieldNames != null
                 val categoryFields = grouped[category].orEmpty()
-                    .filter { matchingFieldNames == null || it.name in matchingFieldNames }
+                    .filter { field ->
+                        val matchesSearch = matchingFieldNames == null || field.name in matchingFieldNames
+                        when {
+                            !matchesSearch -> false
+                            // While searching, keep swipe settings discoverable in the full results.
+                            searching -> true
+                            else -> field.name !in swipeActionFields
+                        }
+                    }
                 if (categoryFields.isEmpty()) continue
 
                 item(key = "cat_${category.qualifiedName ?: category.simpleName}") {
@@ -852,11 +989,85 @@ fun SettingsScreen(
                                 }
                             }
                         }
+
+                        if (!searching && category == Gestures::class) {
+                            SettingsItem(
+                                title = oneFingerSwipeTitle,
+                                onClick = { swipeSettingsPage = SwipeSettingsPage.OneFinger },
+                            )
+                            SettingsItem(
+                                title = twoFingerSwipeTitle,
+                                onClick = { swipeSettingsPage = SwipeSettingsPage.TwoFinger },
+                            )
+                        }
                     }
                 }
             }
 
-            item(key = "widgets") {
+            val page = swipeSettingsPage
+            if (page != null) {
+                item(key = "swipe_settings_page") {
+                    val config = if (page.twoFinger) {
+                        uiState.twoFingerSwipePie
+                    } else {
+                        uiState.oneFingerSwipePie
+                    }
+                    val directionCount = config.directionCount
+                        .takeIf { it == 4 || it == 6 || it == 8 }
+                        ?: 4
+                    val slices = buildSwipePieSlices(uiState, page.twoFinger)
+
+                    SwipeActionsPage(
+                        directionCount = directionCount,
+                        slices = slices,
+                        iconPackName = uiState.selectedIconPack,
+                        onDirectionCountChange = { newCount ->
+                            coroutineScope.launch {
+                                viewModel.setSwipePieDirectionCount(page.twoFinger, newCount)
+                            }
+                        },
+                        onSliceActionSelected = { sliceIndex, action ->
+                            coroutineScope.launch {
+                                val slice = slices.getOrNull(sliceIndex)
+                                val existingActionField = slice?.existingActionField
+                                val existingAppField = slice?.existingAppField
+                                if (existingActionField != null) {
+                                    viewModel.updateSetting(existingActionField, action)
+                                } else {
+                                    viewModel.setSwipePieSliceAction(
+                                        twoFinger = page.twoFinger,
+                                        count = directionCount,
+                                        index = sliceIndex,
+                                        action = action,
+                                    )
+                                }
+
+                                if (action == Constants.SwipeAction.APP) {
+                                    val selectionType = existingAppField?.let(::appSelectionTypeFor)
+                                    if (selectionType != null) {
+                                        viewModel.emitEvent(
+                                            UiEvent.NavigateToAppSelection(selectionType)
+                                        )
+                                    } else {
+                                        viewModel.emitEvent(
+                                            UiEvent.NavigateToAppSelection(
+                                                selectionType = AppSelectionType.SWIPE_PIE_APP,
+                                                swipePieTarget = SwipePieTarget(
+                                                    twoFinger = page.twoFinger,
+                                                    directionCount = directionCount,
+                                                    sliceIndex = sliceIndex,
+                                                ),
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+
+            if (page == null) item(key = "widgets") {
                 SettingsSection(title = "Widgets") {
                     SettingsAction(
                         title = "Add Widget",
@@ -870,7 +1081,7 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = "private_space_$refreshTrigger") {
+            if (page == null) item(key = "private_space_$refreshTrigger") {
                 SettingsSection(title = "Private Space") {
                     if (mainViewModel.isPrivateSpaceSupported) {
                         val privateSpaceState by mainViewModel.privateSpaceState.collectAsState()
@@ -898,7 +1109,7 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = "system") {
+            if (page == null) item(key = "system") {
                 SettingsSection(title = "System") {
                     SettingsItem(
                         title = "Set as Default Launcher",
@@ -951,7 +1162,7 @@ fun SettingsScreen(
                 }
             }
 
-            item(key = "backup") {
+            if (page == null) item(key = "backup") {
                 SettingsSection(title = "Backup") {
                     SettingsAction(
                         title = "Export Settings",

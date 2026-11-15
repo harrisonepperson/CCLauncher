@@ -35,6 +35,7 @@ import app.cclauncher.helper.SearchAliasUtils
 import app.cclauncher.helper.getScreenDimensions
 import app.cclauncher.helper.getUserHandleFromString
 import app.cclauncher.ui.UiEvent
+import app.cclauncher.ui.SwipePieTarget
 import app.cclauncher.ui.AppDrawerUiState
 import app.cclauncher.ui.components.snackbar.SnackbarManager
 import kotlinx.coroutines.FlowPreview
@@ -1287,6 +1288,26 @@ class MainViewModel(
             Constants.FLAG_SET_TWO_FINGER_SWIPE_RIGHT_APP -> setTwoFingerSwipeRightApp(appModel)
             Constants.FLAG_SET_TWO_FINGER_SWIPE_UP_APP -> setTwoFingerSwipeUpApp(appModel)
             Constants.FLAG_SET_TWO_FINGER_SWIPE_DOWN_APP -> setTwoFingerSwipeDownApp(appModel)
+        }
+    }
+
+    fun selectedSwipePieApp(appModel: AppModel, target: SwipePieTarget) {
+        viewModelScope.launch {
+            val appPreference = AppPreference(
+                label = appModel.appLabel,
+                packageName = appModel.appPackage,
+                activityClassName = appModel.activityClassName,
+                userString = appModel.user.toString(),
+                isSystemShortcut = appModel.isSystemShortcut,
+                systemShortcutId = appModel.systemShortcutId,
+                systemShortcutPackage = appModel.systemShortcutPackage
+            )
+            settingsRepository.setSwipePieSliceApp(
+                twoFinger = target.twoFinger,
+                count = target.directionCount,
+                index = target.sliceIndex,
+                app = appPreference,
+            )
         }
     }
 

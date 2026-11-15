@@ -111,6 +111,14 @@ class SettingsViewModel(
         updateSetting(propertyName, newValue)
     }
 
+    suspend fun setSwipePieDirectionCount(twoFinger: Boolean, count: Int) {
+        settingsRepository.setSwipePieDirectionCount(twoFinger, count)
+    }
+
+    suspend fun setSwipePieSliceAction(twoFinger: Boolean, count: Int, index: Int, action: Int) {
+        settingsRepository.setSwipePieSliceAction(twoFinger, count, index, action)
+    }
+
     suspend fun willGridChangeAffectItems(propertyName: String, newValue: Int): Boolean {
         val currentSettings = settingsState.value
         val currentLayout = settingsRepository.getHomeLayout().first()
