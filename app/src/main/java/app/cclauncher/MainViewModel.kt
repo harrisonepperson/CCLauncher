@@ -1365,6 +1365,12 @@ class MainViewModel(
         }
     }
 
+    fun launchSwipePieApp(app: AppPreference) {
+        viewModelScope.launch {
+            launchSwipeApp(app)
+        }
+    }
+
     fun launchSwipeUpApp() {
         viewModelScope.launch {
             launchSwipeApp(settingsRepository.settings.first().swipeUpApp)

@@ -95,7 +95,8 @@ import app.cclauncher.settings.ColorPicker
 import app.cclauncher.settings.FontPicker
 import app.cclauncher.settings.Gestures
 import app.cclauncher.settings.IconPackPicker
-import app.cclauncher.settings.SwipePieSliceConfig
+import app.cclauncher.settings.swipePieDirectionCount
+import app.cclauncher.settings.swipePieSlice
 import app.cclauncher.ui.components.PageReduceWarningDialog
 import app.cclauncher.ui.components.snackbar.SnackbarManager
 import app.cclauncher.ui.dialogs.ImportExportResultDialog
@@ -147,91 +148,21 @@ private enum class SwipeSettingsPage(val twoFinger: Boolean) {
     TwoFinger(true),
 }
 
-private data class SwipeFieldRef(
-    val actionField: String,
-    val appField: String,
-)
-
-private val oneFingerSwipeRefs = listOf(
-    SwipeFieldRef("swipeUpAction", "swipeUpApp"),
-    SwipeFieldRef("swipeRightAction", "swipeRightApp"),
-    SwipeFieldRef("swipeDownAction", "swipeDownApp"),
-    SwipeFieldRef("swipeLeftAction", "swipeLeftApp"),
-)
-
-private val twoFingerSwipeRefs = listOf(
-    SwipeFieldRef("twoFingerSwipeUpAction", "twoFingerSwipeUpApp"),
-    SwipeFieldRef("twoFingerSwipeRightAction", "twoFingerSwipeRightApp"),
-    SwipeFieldRef("twoFingerSwipeDownAction", "twoFingerSwipeDownApp"),
-    SwipeFieldRef("twoFingerSwipeLeftAction", "twoFingerSwipeLeftApp"),
-)
-
-private fun existingSwipeRefIndex(count: Int, index: Int): Int? = when (count) {
-    4 -> index
-    6 -> when (index) {
-        0 -> 0
-        3 -> 2
-        else -> null
-    }
-    8 -> when (index) {
-        0 -> 0
-        2 -> 1
-        4 -> 2
-        6 -> 3
-        else -> null
-    }
-    else -> null
-}
-
-private fun swipeFieldAction(settings: AppSettings, field: String): Int = when (field) {
-    "swipeUpAction" -> settings.swipeUpAction
-    "swipeRightAction" -> settings.swipeRightAction
-    "swipeDownAction" -> settings.swipeDownAction
-    "swipeLeftAction" -> settings.swipeLeftAction
-    "twoFingerSwipeUpAction" -> settings.twoFingerSwipeUpAction
-    "twoFingerSwipeRightAction" -> settings.twoFingerSwipeRightAction
-    "twoFingerSwipeDownAction" -> settings.twoFingerSwipeDownAction
-    "twoFingerSwipeLeftAction" -> settings.twoFingerSwipeLeftAction
-    else -> Constants.SwipeAction.NULL
-}
-
-private fun swipeFieldApp(settings: AppSettings, field: String): AppPreference = when (field) {
-    "swipeUpApp" -> settings.swipeUpApp
-    "swipeRightApp" -> settings.swipeRightApp
-    "swipeDownApp" -> settings.swipeDownApp
-    "swipeLeftApp" -> settings.swipeLeftApp
-    "twoFingerSwipeUpApp" -> settings.twoFingerSwipeUpApp
-    "twoFingerSwipeRightApp" -> settings.twoFingerSwipeRightApp
-    "twoFingerSwipeDownApp" -> settings.twoFingerSwipeDownApp
-    "twoFingerSwipeLeftApp" -> settings.twoFingerSwipeLeftApp
-    else -> AppPreference()
-}
-
 private fun buildSwipePieSlices(
     settings: AppSettings,
     twoFinger: Boolean,
 ): List<SwipePieSliceUi> {
     val config = if (twoFinger) settings.twoFingerSwipePie else settings.oneFingerSwipePie
-    val count = config.directionCount.takeIf { it == 4 || it == 6 || it == 8 } ?: 4
-    val refs = if (twoFinger) twoFingerSwipeRefs else oneFingerSwipeRefs
+    val count = swipePieDirectionCount(config)
 
     return (0 until count).map { index ->
-        val refIndex = existingSwipeRefIndex(count, index)
-        if (refIndex != null) {
-            val ref = refs[refIndex]
-            SwipePieSliceUi(
-                action = swipeFieldAction(settings, ref.actionField),
-                app = swipeFieldApp(settings, ref.appField),
-                existingActionField = ref.actionField,
-                existingAppField = ref.appField,
-            )
-        } else {
-            val slice = config.slices["$count:$index"] ?: SwipePieSliceConfig()
-            SwipePieSliceUi(
-                action = slice.action,
-                app = slice.app,
-            )
-        }
+        val slice = swipePieSlice(settings, twoFinger, index)
+        SwipePieSliceUi(
+            action = slice.action,
+            app = slice.app,
+            existingActionField = slice.existingActionField,
+            existingAppField = slice.existingAppField,
+        )
     }
 }
 

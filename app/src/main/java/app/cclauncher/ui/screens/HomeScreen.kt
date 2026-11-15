@@ -67,6 +67,9 @@ import app.cclauncher.helper.getScreenDimensions
 import app.cclauncher.helper.showToast
 import app.cclauncher.helper.withResolvedUser
 import app.cclauncher.settings.AppSettings
+import app.cclauncher.settings.swipePieDirectionCount
+import app.cclauncher.settings.swipePieIndexForAngle
+import app.cclauncher.settings.swipePieSlice
 import app.cclauncher.ui.composables.HomeAppItem
 import app.cclauncher.ui.composables.WidgetHostViewContainer
 import app.cclauncher.ui.composables.WidgetSizeData
@@ -138,47 +141,23 @@ fun HomeScreen(
     }
 
     val onSwipe: (SwipeGesture) -> Unit = { gesture ->
-        if (gesture.fingers >= 2) {
-            when (gesture.direction) {
-                SwipeDirection.Up -> handleSwipeAction(settings.twoFingerSwipeUpAction) {
-                    viewModel.launchTwoFingerSwipeUpApp()
-                }
-                SwipeDirection.Down -> handleSwipeAction(settings.twoFingerSwipeDownAction) {
-                    viewModel.launchTwoFingerSwipeDownApp()
-                }
-                SwipeDirection.Left -> handleSwipeAction(settings.twoFingerSwipeLeftAction) {
-                    viewModel.launchTwoFingerSwipeLeftApp()
-                }
-                SwipeDirection.Right -> handleSwipeAction(settings.twoFingerSwipeRightAction) {
-                    viewModel.launchTwoFingerSwipeRightApp()
-                }
-            }
-        } else {
-            when (gesture.direction) {
-                SwipeDirection.Up -> handleSwipeAction(settings.swipeUpAction) {
-                    viewModel.launchSwipeUpApp()
-                }
-                SwipeDirection.Down -> handleSwipeAction(settings.swipeDownAction) {
-                    viewModel.launchSwipeDownApp()
-                }
-                SwipeDirection.Left -> {
-                    if (homeLayoutState.pageCount > 1) {
-                        goToNextPage()
-                    } else {
-                        handleSwipeAction(settings.swipeLeftAction) {
-                            viewModel.launchSwipeLeftApp()
-                        }
-                    }
-                }
-                SwipeDirection.Right -> {
-                    if (homeLayoutState.pageCount > 1) {
-                        goToPreviousPage()
-                    } else {
-                        handleSwipeAction(settings.swipeRightAction) {
-                            viewModel.launchSwipeRightApp()
-                        }
-                    }
-                }
+        val twoFinger = gesture.fingers >= 2
+        val config = if (twoFinger) settings.twoFingerSwipePie else settings.oneFingerSwipePie
+        val directionCount = swipePieDirectionCount(config)
+        val sliceIndex = swipePieIndexForAngle(gesture.angleDegrees, directionCount)
+        val slice = swipePieSlice(settings, twoFinger, sliceIndex)
+
+        // Keep the original horizontal page navigation as a fallback when the
+        // cardinal slices are unassigned; configured actions take precedence.
+        val pageFallback = !twoFinger &&
+            directionCount == 4 &&
+            slice.action == Constants.SwipeAction.NULL &&
+            homeLayoutState.pageCount > 1
+        when {
+            pageFallback && gesture.direction == SwipeDirection.Left -> goToNextPage()
+            pageFallback && gesture.direction == SwipeDirection.Right -> goToPreviousPage()
+            else -> handleSwipeAction(slice.action) {
+                viewModel.launchSwipePieApp(slice.app)
             }
         }
     }
