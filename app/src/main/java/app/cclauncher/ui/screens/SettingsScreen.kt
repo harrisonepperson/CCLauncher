@@ -720,8 +720,14 @@ fun SettingsScreen(
                                 val meta = field.meta
                                 val pagesPaused = uiState.homeLayout.pageCount > 1 &&
                                     field.name in horizontalSwipeShortcutFields
+                                val extraDependencyEnabled =
+                                    if (field.name == "treatAmbiguousMathInputsAsMath") {
+                                        uiState.allowMathResults && uiState.autoOpenFilteredApp
+                                    } else {
+                                        true
+                                    }
                                 val isEnabled = if (meta != null) {
-                                    schema.isEnabled(uiState, field) && !pagesPaused
+                                    schema.isEnabled(uiState, field) && !pagesPaused && extraDependencyEnabled
                                 } else false
 
                                 if (meta != null) {

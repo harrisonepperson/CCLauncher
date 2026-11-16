@@ -178,6 +178,9 @@
     <string name="setting_app_drawer_background_opacity_desc">Tint the app drawer with the theme background color, from 0% (fully transparent) to 100% (solid)</string>
     <string name="setting_app_drawer_results_alignment">App Drawer Results Alignment</string>
     <string name="setting_auto_open_single_matches">Auto Open Single Matches</string>
+    <string name="setting_allow_math_results_in_search">Allow math results in search</string>
+    <string name="setting_treat_ambiguous_math_inputs_as_math">Treat ambiguous math inputs as math</string>
+    <string name="setting_treat_ambiguous_math_inputs_as_math_desc">If enabled, inputs like \'s\' or \'e\' that could be the start of a math expression will not immediately resolve to a single matching app.</string>
     <string name="setting_auto_show_keyboard">Auto Show Keyboard</string>
     <string name="setting_auto_update_wallpaper">Auto Update Wallpaper</string>
     <string name="setting_automatically_update_plain_wallpaper_when_system_theme_changes_desc">Automatically update plain wallpaper when system theme changes</string>

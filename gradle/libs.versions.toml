@@ -5,6 +5,7 @@ coreKtx = "1.19.1"
 datastorePreferences = "1.3.0"
 androidGradlePlugin = "9.3.0"
 gson = "2.15.0"
+junit = "4.13.2"
 kotlinReflect = "2.4.21"
 kotlinStdlib = "2.4.21"
 kotlinxSerializationJson = "1.12.0"
@@ -36,6 +37,7 @@ androidx-material-icons-extended = { module = "androidx.compose.material:materia
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlinReflect" }
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlinStdlib" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }

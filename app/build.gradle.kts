@@ -168,5 +168,6 @@ dependencies {
 
     // Testing
 //    androidTestImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.junit)
     debugImplementation(libs.androidx.ui.tooling)
 }

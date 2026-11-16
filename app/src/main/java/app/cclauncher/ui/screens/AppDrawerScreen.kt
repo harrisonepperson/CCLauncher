@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,6 +38,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -71,6 +75,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -80,6 +85,8 @@ import app.cclauncher.data.AppModel
 import app.cclauncher.data.Constants
 import app.cclauncher.helper.openAppInfo
 import app.cclauncher.helper.openSearch
+import app.cclauncher.helper.MathQuery
+import app.cclauncher.helper.classifyMathQuery
 import app.cclauncher.ui.BackHandler
 import app.cclauncher.ui.components.AppListItem
 import app.cclauncher.ui.components.PrivateSpaceIndicator
@@ -150,6 +157,18 @@ fun AppDrawerScreen(
         else -> TextAlign.Start
     }
     val canAutoFocusSearch = !reverseLayout && !isSearchBarBottom
+    val mathQuery = remember(
+        searchQuery,
+        settings.allowMathResults,
+        settings.treatAmbiguousMathInputsAsMath,
+    ) {
+        if (settings.allowMathResults) {
+            classifyMathQuery(searchQuery, settings.treatAmbiguousMathInputsAsMath)
+        } else {
+            MathQuery.NotMath
+        }
+    }
+    val mathResult = (mathQuery as? MathQuery.Evaluated)?.result
 
     var selectedApp by remember { mutableStateOf<AppModel?>(null) }
     var showContextMenu by remember { mutableStateOf(false) }
@@ -313,9 +332,11 @@ fun AppDrawerScreen(
                 searchQuery = searchQuery,
                 onSearchChanged = { query -> searchQuery = query },
                 onEnterPressed = {
-                    val appsToOpen =
-                        if (searchQuery.isEmpty()) uiState.apps else uiState.filteredApps
-                    if (appsToOpen.isNotEmpty()) handleAppClick(appsToOpen[0])
+                    if (mathResult == null) {
+                        val appsToOpen =
+                            if (searchQuery.isEmpty()) uiState.apps else uiState.filteredApps
+                        if (appsToOpen.isNotEmpty()) handleAppClick(appsToOpen[0])
+                    }
                 },
                 onFocusStateChanged = { focused -> isSearchFocused = focused },
                 focusRequester = focusRequester,
@@ -337,8 +358,9 @@ fun AppDrawerScreen(
             hasAutoSelected = false
         }
 
-        LaunchedEffect(appsToShow, settings.autoOpenFilteredApp, searchQuery) {
+        LaunchedEffect(appsToShow, settings.autoOpenFilteredApp, searchQuery, mathQuery) {
             if (
+                mathQuery is MathQuery.NotMath &&
                 searchQuery.isNotEmpty() &&
                 appsToShow.size == 1 &&
                 settings.autoOpenFilteredApp &&
@@ -362,7 +384,7 @@ fun AppDrawerScreen(
                 uiState.isLoading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
                 uiState.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Error: ${uiState.error}") }
                 uiState.apps.isEmpty() && searchQuery.isEmpty() -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("No apps found") }
-                uiState.filteredApps.isEmpty() && searchQuery.isNotEmpty() -> {
+                uiState.filteredApps.isEmpty() && searchQuery.isNotEmpty() && mathResult == null -> {
                     Box(Modifier.fillMaxSize(), Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("No apps found matching \"$searchQuery\"", color = MaterialTheme.colorScheme.onBackground)
@@ -390,6 +412,23 @@ fun AppDrawerScreen(
                         reverseLayout = reverseLayout,
                         verticalArrangement = Arrangement.spacedBy(itemSpacing)
                     ) {
+                        mathResult?.let { result ->
+                            item(key = "math_result") {
+                                val customTextColor = if (settings.useCustomTextColor && settings.textColor != 0) {
+                                    Color(settings.textColor)
+                                } else {
+                                    null
+                                }
+                                MathSearchResultItem(
+                                    expression = searchQuery,
+                                    result = result,
+                                    fontScale = searchResultsFontSize,
+                                    fontWeight = fontWeight,
+                                    textColor = customTextColor,
+                                    textAlign = resultsTextAlign,
+                                )
+                            }
+                        }
                         items(
                             items = appsToShow,
                             key = { app -> app.getKey() }
@@ -441,9 +480,11 @@ fun AppDrawerScreen(
                 searchQuery = searchQuery,
                 onSearchChanged = { query -> searchQuery = query },
                 onEnterPressed = {
-                    val appsToOpen =
-                        if (searchQuery.isEmpty()) uiState.apps else uiState.filteredApps
-                    if (appsToOpen.isNotEmpty()) handleAppClick(appsToOpen[0])
+                    if (mathResult == null) {
+                        val appsToOpen =
+                            if (searchQuery.isEmpty()) uiState.apps else uiState.filteredApps
+                        if (appsToOpen.isNotEmpty()) handleAppClick(appsToOpen[0])
+                    }
                 },
                 onFocusStateChanged = { focused -> isSearchFocused = focused },
                 focusRequester = focusRequester,
@@ -646,6 +687,56 @@ private fun ContextMenuItem(text: String, icon: ImageVector, onClick: () -> Unit
     ) {
         Icon(icon, text, Modifier.padding(end = 16.dp))
         Text(text, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun MathSearchResultItem(
+    expression: String,
+    result: String,
+    fontScale: Float,
+    fontWeight: FontWeight,
+    textColor: Color?,
+    textAlign: TextAlign,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        ) {
+            Text(
+                text = expression,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = (MaterialTheme.typography.bodyMedium.fontSize.value * fontScale).sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = textAlign,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "= $result",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = (MaterialTheme.typography.headlineMedium.fontSize.value * fontScale).sp,
+                    fontWeight = fontWeight,
+                ),
+                color = textColor ?: MaterialTheme.colorScheme.onSurface,
+                textAlign = textAlign,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
