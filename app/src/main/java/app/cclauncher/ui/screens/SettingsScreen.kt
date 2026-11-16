@@ -9,6 +9,11 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
@@ -192,6 +198,11 @@ fun SettingsScreen(
     val oneFingerSwipeTitle = stringResource(R.string.one_finger_swipe_actions)
     val twoFingerSwipeTitle = stringResource(R.string.two_finger_swipe_actions)
     val numberOfSwipeDirectionsTitle = stringResource(R.string.number_of_swipe_directions)
+    val configureSwipeActionsTitle = stringResource(R.string.configure_swipe_actions)
+    val showSwipeHintsTitle = stringResource(R.string.show_swipe_hints_on_hold)
+    val showAppIconsTitle = stringResource(R.string.show_app_icons)
+    val showAppNamesTitle = stringResource(R.string.show_app_names)
+    val hintFontSizeTitle = stringResource(R.string.hint_font_size)
     val uiState by viewModel.settingsState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -203,6 +214,11 @@ fun SettingsScreen(
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var swipeSettingsPage by rememberSaveable { mutableStateOf<SwipeSettingsPage?>(null) }
+    var lastSwipeSettingsPage by remember { mutableStateOf<SwipeSettingsPage?>(null) }
+    LaunchedEffect(swipeSettingsPage) {
+        if (swipeSettingsPage != null) lastSwipeSettingsPage = swipeSettingsPage
+    }
+    val visibleSwipeSettingsPage = swipeSettingsPage ?: lastSwipeSettingsPage
     val swipePageTitle = swipeSettingsPage?.let {
         if (it.twoFinger) twoFingerSwipeTitle else oneFingerSwipeTitle
     }
@@ -616,9 +632,26 @@ fun SettingsScreen(
             val haystack = titles.joinToString(" ").lowercase()
             return searchTerms.all { it in haystack }
         }
-        val oneFingerSwipeMatches = matchesSearch(oneFingerSwipeTitle, numberOfSwipeDirectionsTitle)
-        val twoFingerSwipeMatches = matchesSearch(twoFingerSwipeTitle, numberOfSwipeDirectionsTitle)
+        val oneFingerSwipeMatches = matchesSearch(
+            oneFingerSwipeTitle,
+            configureSwipeActionsTitle,
+            numberOfSwipeDirectionsTitle,
+            showSwipeHintsTitle,
+            showAppIconsTitle,
+            showAppNamesTitle,
+            hintFontSizeTitle,
+        )
+        val twoFingerSwipeMatches = matchesSearch(
+            twoFingerSwipeTitle,
+            configureSwipeActionsTitle,
+            numberOfSwipeDirectionsTitle,
+            showSwipeHintsTitle,
+            showAppIconsTitle,
+            showAppNamesTitle,
+            hintFontSizeTitle,
+        )
 
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -659,7 +692,6 @@ fun SettingsScreen(
             }
 
             for (category: KClass<*> in categories) {
-                if (swipeSettingsPage != null) continue
                 val searching = matchingFieldNames != null
                 val categoryFields = grouped[category].orEmpty()
                     .filter { field ->
@@ -947,12 +979,26 @@ fun SettingsScreen(
                                 SettingsItem(
                                     title = oneFingerSwipeTitle,
                                     onClick = { swipeSettingsPage = SwipeSettingsPage.OneFinger },
+                                    trailingContent = {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    },
                                 )
                             }
                             if (twoFingerSwipeMatches) {
                                 SettingsItem(
                                     title = twoFingerSwipeTitle,
                                     onClick = { swipeSettingsPage = SwipeSettingsPage.TwoFinger },
+                                    trailingContent = {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -961,73 +1007,6 @@ fun SettingsScreen(
             }
 
             val page = swipeSettingsPage
-            if (page != null) {
-                item(key = "swipe_settings_page") {
-                    val config = if (page.twoFinger) {
-                        uiState.twoFingerSwipePie
-                    } else {
-                        uiState.oneFingerSwipePie
-                    }
-                    val directionCount = config.directionCount
-                        .takeIf { it == 4 || it == 6 || it == 8 }
-                        ?: 4
-                    val slices = buildSwipePieSlices(uiState, page.twoFinger)
-
-                    SwipeActionsPage(
-                        directionCount = directionCount,
-                        slices = slices,
-                        iconPackName = uiState.selectedIconPack,
-                        showHintsOnHold = config.showHintsOnHold,
-                        onDirectionCountChange = { newCount ->
-                            coroutineScope.launch {
-                                viewModel.setSwipePieDirectionCount(page.twoFinger, newCount)
-                            }
-                        },
-                        onShowHintsOnHoldChange = { enabled ->
-                            coroutineScope.launch {
-                                viewModel.setSwipePieShowHintsOnHold(page.twoFinger, enabled)
-                            }
-                        },
-                        onSliceActionSelected = { sliceIndex, action ->
-                            coroutineScope.launch {
-                                val slice = slices.getOrNull(sliceIndex)
-                                val existingActionField = slice?.existingActionField
-                                val existingAppField = slice?.existingAppField
-                                if (existingActionField != null) {
-                                    viewModel.updateSetting(existingActionField, action)
-                                } else {
-                                    viewModel.setSwipePieSliceAction(
-                                        twoFinger = page.twoFinger,
-                                        count = directionCount,
-                                        index = sliceIndex,
-                                        action = action,
-                                    )
-                                }
-
-                                if (action == Constants.SwipeAction.APP) {
-                                    val selectionType = existingAppField?.let(::appSelectionTypeFor)
-                                    if (selectionType != null) {
-                                        viewModel.emitEvent(
-                                            UiEvent.NavigateToAppSelection(selectionType)
-                                        )
-                                    } else {
-                                        viewModel.emitEvent(
-                                            UiEvent.NavigateToAppSelection(
-                                                selectionType = AppSelectionType.SWIPE_PIE_APP,
-                                                swipePieTarget = SwipePieTarget(
-                                                    twoFinger = page.twoFinger,
-                                                    directionCount = directionCount,
-                                                    sliceIndex = sliceIndex,
-                                                ),
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-            }
 
             if (page == null) item(key = "widgets") {
                 SettingsSection(title = "Widgets") {
@@ -1146,6 +1125,114 @@ fun SettingsScreen(
                 }
             }
 
+        }
+
+        AnimatedVisibility(
+            visible = swipeSettingsPage != null,
+            modifier = Modifier.fillMaxSize(),
+            enter = slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(300),
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(300),
+            ),
+        ) {
+            val page = visibleSwipeSettingsPage
+            if (page != null) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(paddingValues)
+                ) {
+                    item(key = "swipe_settings_page") {
+                        val config = if (page.twoFinger) {
+                            uiState.twoFingerSwipePie
+                        } else {
+                            uiState.oneFingerSwipePie
+                        }
+                        val directionCount = config.directionCount
+                            .takeIf { it == 4 || it == 6 || it == 8 }
+                            ?: 4
+                        val slices = buildSwipePieSlices(uiState, page.twoFinger)
+
+                        SwipeActionsPage(
+                            directionCount = directionCount,
+                            slices = slices,
+                            iconPackName = uiState.selectedIconPack,
+                            showHintsOnHold = config.showHintsOnHold,
+                            showAppIcons = config.showAppIcons,
+                            showAppNames = config.showAppNames,
+                            hintFontSize = config.hintFontSize,
+                            onDirectionCountChange = { newCount ->
+                                coroutineScope.launch {
+                                    viewModel.setSwipePieDirectionCount(page.twoFinger, newCount)
+                                }
+                            },
+                            onShowHintsOnHoldChange = { enabled ->
+                                coroutineScope.launch {
+                                    viewModel.setSwipePieShowHintsOnHold(page.twoFinger, enabled)
+                                }
+                            },
+                            onShowAppIconsChange = { enabled ->
+                                coroutineScope.launch {
+                                    viewModel.setSwipePieShowAppIcons(page.twoFinger, enabled)
+                                }
+                            },
+                            onShowAppNamesChange = { enabled ->
+                                coroutineScope.launch {
+                                    viewModel.setSwipePieShowAppNames(page.twoFinger, enabled)
+                                }
+                            },
+                            onHintFontSizeChange = { size ->
+                                coroutineScope.launch {
+                                    viewModel.setSwipePieHintFontSize(page.twoFinger, size)
+                                }
+                            },
+                            onSliceActionSelected = { sliceIndex, action ->
+                                coroutineScope.launch {
+                                    val slice = slices.getOrNull(sliceIndex)
+                                    val existingActionField = slice?.existingActionField
+                                    val existingAppField = slice?.existingAppField
+                                    if (existingActionField != null) {
+                                        viewModel.updateSetting(existingActionField, action)
+                                    } else {
+                                        viewModel.setSwipePieSliceAction(
+                                            twoFinger = page.twoFinger,
+                                            count = directionCount,
+                                            index = sliceIndex,
+                                            action = action,
+                                        )
+                                    }
+
+                                    if (action == Constants.SwipeAction.APP) {
+                                        val selectionType = existingAppField?.let(::appSelectionTypeFor)
+                                        if (selectionType != null) {
+                                            viewModel.emitEvent(
+                                                UiEvent.NavigateToAppSelection(selectionType)
+                                            )
+                                        } else {
+                                            viewModel.emitEvent(
+                                                UiEvent.NavigateToAppSelection(
+                                                    selectionType = AppSelectionType.SWIPE_PIE_APP,
+                                                    swipePieTarget = SwipePieTarget(
+                                                        twoFinger = page.twoFinger,
+                                                        directionCount = directionCount,
+                                                        sliceIndex = sliceIndex,
+                                                    ),
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
         }
     }
 

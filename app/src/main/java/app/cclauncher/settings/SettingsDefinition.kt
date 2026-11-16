@@ -795,6 +795,9 @@ data class SwipePieConfig(
     val directionCount: Int = 4,
     val slices: Map<String, SwipePieSliceConfig> = emptyMap(),
     val showHintsOnHold: Boolean = false,
+    val showAppIcons: Boolean = true,
+    val showAppNames: Boolean = false,
+    val hintFontSize: Float = 1.0f,
 )
 
 data class AppKeyMigration(

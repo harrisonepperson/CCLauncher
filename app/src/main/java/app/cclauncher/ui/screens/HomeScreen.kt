@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -56,6 +57,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -156,6 +158,22 @@ fun HomeScreen(
     val oneFingerHintsEnabled = settings.oneFingerSwipePie.showHintsOnHold
     val twoFingerHintsEnabled = settings.twoFingerSwipePie.showHintsOnHold
     val hintsEnabled = oneFingerHintsEnabled || twoFingerHintsEnabled
+    val hintAppNameColor = if (settings.useCustomTextColor && settings.textColor != 0) {
+        Color(settings.textColor)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val hintAppNameFontWeight = remember(settings.fontWeight) {
+        when (settings.fontWeight) {
+            0 -> FontWeight.Thin
+            1 -> FontWeight.Light
+            2 -> FontWeight.Normal
+            3 -> FontWeight.Medium
+            4 -> FontWeight.Bold
+            5 -> FontWeight.Black
+            else -> FontWeight.Normal
+        }
+    }
     var swipeHint by remember { mutableStateOf<SwipeHintState?>(null) }
 
     fun performPieSlice(twoFinger: Boolean, sliceIndex: Int) {
@@ -361,6 +379,11 @@ fun HomeScreen(
         // Swipe hint overlay (long-press)
         swipeHint?.let { hint ->
             val slices = hintSlices(hint)
+            val hintConfig = if (hint.twoFinger) {
+                settings.twoFingerSwipePie
+            } else {
+                settings.oneFingerSwipePie
+            }
             val geometry = swipeHintGeometry(hint.center, hint.screenSize, uiDensity)
             val hit = swipeHintHit(hint.pointer, geometry, hint.directionCount, slices)
             SwipeHintOverlay(
@@ -368,6 +391,11 @@ fun HomeScreen(
                 directionCount = hint.directionCount,
                 slices = slices,
                 iconPackName = settings.selectedIconPack,
+                showAppIcons = hintConfig.showAppIcons,
+                showAppNames = hintConfig.showAppNames,
+                hintFontSize = hintConfig.hintFontSize,
+                appNameColor = hintAppNameColor,
+                appNameFontWeight = hintAppNameFontWeight,
                 hoveredSliceIndex = (hit as? SwipeHintHit.Slice)?.index,
                 centerHovered = hit == SwipeHintHit.Center,
                 onSliceSelected = { index ->

@@ -73,6 +73,8 @@ fun DropdownSettingDialog(
     title: String,
     options: List<String>,
     selectedIndex: Int,
+    note: String? = null,
+    confirmOnly: Boolean = false,
     onDismiss: () -> Unit,
     onOptionSelected: (Int) -> Unit
 ) {
@@ -82,36 +84,52 @@ fun DropdownSettingDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            LazyColumn {
-                items(options.size) { index ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selected = index }
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selected == index,
-                            onClick = { selected = index }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(options[index])
+            Column {
+                if (note != null) {
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                LazyColumn {
+                    items(options.size) { index ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selected = index }
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selected == index,
+                                onClick = { selected = index }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(options[index])
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onOptionSelected(selected)
-                onDismiss()
+                if (confirmOnly) {
+                    onDismiss()
+                } else {
+                    onOptionSelected(selected)
+                    onDismiss()
+                }
             }) {
-                Text("Apply")
+                Text(if (confirmOnly) "Ok" else "Apply")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            if (!confirmOnly) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         }
     )

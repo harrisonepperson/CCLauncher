@@ -157,7 +157,8 @@
         \n\nWe believe a minimal launcher is a great choice, and we hope you enjoy it. Tell the world what you think!</string>
     <string name="alignment_changed">Alignment changed ✅</string>
     <string name="home_screen">Home screen</string>
-    <string name="show_app_names">Show app names</string>
+    <string name="show_app_names">Show App Names</string>
+    <string name="hint_font_size">Hint Font Size</string>
     <string name="set">Set</string>
     <string name="widget_permission_failed">Failed to request widget permission: %1$s</string>
     <string name="widget_configuration_failed">Failed to configure widget. Please check app permissions.</string>
@@ -195,7 +196,7 @@
     <string name="setting_home_screen_columns">Home Screen Columns</string>
     <string name="setting_home_screen_pages">Home Screen Pages</string>
     <string name="setting_home_screen_rows">Home Screen Rows</string>
-    <string name="setting_home_text_size">Home Text Size</string>
+    <string name="setting_home_text_size">Home Font Size</string>
     <string name="setting_horizontal_alignment_of_app_names_in_app_drawer_results_desc">Horizontal alignment of app names in app drawer results</string>
     <string name="setting_icon_corner_radius">Icon Corner Radius</string>
     <string name="setting_icon_pack">Icon Pack</string>
@@ -238,12 +239,16 @@
     <string name="setting_show_search_web_button_when_no_apps_match_desc">Show \'Search Web\' button when no apps match</string>
     <string name="setting_show_status_bar">Show Status Bar</string>
     <string name="setting_show_web_search_option">Show Web Search Option</string>
-    <string name="number_of_swipe_directions">Number of Swipe Directions</string>
+    <string name="number_of_swipe_directions">Number of Swipe Actions</string>
+    <string name="configure_swipe_actions">Configure Swipe Actions</string>
     <string name="one_finger_swipe_actions">One-Finger Swipe Actions</string>
     <string name="show_swipe_hints_on_hold">Show swipe hints on hold</string>
+    <string name="show_app_icons">Show App Icons</string>
     <string name="swipe_action">Swipe Action</string>
+    <string name="open_cclauncher_settings">Open CCLauncher Settings</string>
+    <string name="center_hold_action_locked_note">To preserve access to the settings menu, the center hold action cannot be changed.</string>
     <string name="swipe_hints">Swipe Hints</string>
-    <string name="tap_a_direction_to_configure">Tap to choose an action to trigger when you swipe in that direction away from the center</string>
+    <string name="tap_a_direction_to_configure">Each slice represents an action to take when you swipe from the center towards it. Tap a slice to choose the action.</string>
     <string name="two_finger_swipe_actions">Two-Finger Swipe Actions</string>
     <string name="setting_swipe_down_action">Swipe Down Action</string>
     <string name="setting_swipe_down_app">Swipe Down App</string>

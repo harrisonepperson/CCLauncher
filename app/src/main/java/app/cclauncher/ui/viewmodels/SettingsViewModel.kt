@@ -119,6 +119,18 @@ class SettingsViewModel(
         settingsRepository.setSwipePieShowHintsOnHold(twoFinger, enabled)
     }
 
+    suspend fun setSwipePieShowAppIcons(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowAppIcons(twoFinger, enabled)
+    }
+
+    suspend fun setSwipePieShowAppNames(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowAppNames(twoFinger, enabled)
+    }
+
+    suspend fun setSwipePieHintFontSize(twoFinger: Boolean, size: Float) {
+        settingsRepository.setSwipePieHintFontSize(twoFinger, size)
+    }
+
     suspend fun setSwipePieSliceAction(twoFinger: Boolean, count: Int, index: Int, action: Int) {
         settingsRepository.setSwipePieSliceAction(twoFinger, count, index, action)
     }

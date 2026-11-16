@@ -149,6 +149,36 @@ class AppSettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun setSwipePieShowAppIcons(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showAppIcons = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showAppIcons = enabled))
+            }
+        }
+    }
+
+    suspend fun setSwipePieShowAppNames(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showAppNames = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showAppNames = enabled))
+            }
+        }
+    }
+
+    suspend fun setSwipePieHintFontSize(twoFinger: Boolean, size: Float) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(hintFontSize = size))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(hintFontSize = size))
+            }
+        }
+    }
+
     suspend fun setSwipePieSliceAction(
         twoFinger: Boolean,
         count: Int,

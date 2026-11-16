@@ -5,8 +5,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -24,20 +26,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.cclauncher.R
 import app.cclauncher.data.Constants
 import app.cclauncher.helper.IconCache
@@ -136,6 +140,11 @@ fun SwipeHintOverlay(
     directionCount: Int,
     slices: List<SwipePieSlice>,
     iconPackName: String,
+    showAppIcons: Boolean,
+    showAppNames: Boolean,
+    hintFontSize: Float,
+    appNameColor: Color,
+    appNameFontWeight: FontWeight,
     hoveredSliceIndex: Int?,
     centerHovered: Boolean,
     onSliceSelected: (Int) -> Unit,
@@ -146,7 +155,6 @@ fun SwipeHintOverlay(
     val iconCache = remember { IconCache(context) }
     val sliceColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
     val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
     val density = LocalDensity.current
     val contentSizePx = with(density) { 64.dp.toPx() }
     val settingsIconSizePx = with(density) { 40.dp.toPx() }
@@ -178,16 +186,11 @@ fun SwipeHintOverlay(
                     }
                 },
         ) {
+            val centerRadius = (geometry.innerRadius - separatorWidth).coerceAtLeast(0f)
             drawCircle(
                 color = if (centerHovered) highlightColor else sliceColor,
-                radius = geometry.innerRadius,
+                radius = centerRadius,
                 center = geometry.center,
-            )
-            drawCircle(
-                color = borderColor,
-                radius = geometry.innerRadius,
-                center = geometry.center,
-                style = Stroke(width = 1.5.dp.toPx()),
             )
 
             repeat(safeDirectionCount) { index ->
@@ -254,6 +257,11 @@ fun SwipeHintOverlay(
                     slice = slice,
                     iconPackName = iconPackName,
                     iconCache = iconCache,
+                    showAppIcons = showAppIcons,
+                    showAppNames = showAppNames,
+                    hintFontSize = hintFontSize,
+                    appNameColor = appNameColor,
+                    appNameFontWeight = appNameFontWeight,
                 )
             }
         }
@@ -284,12 +292,22 @@ private fun SwipeHintSliceContent(
     slice: SwipePieSlice,
     iconPackName: String,
     iconCache: IconCache,
+    showAppIcons: Boolean,
+    showAppNames: Boolean,
+    hintFontSize: Float,
+    appNameColor: Color,
+    appNameFontWeight: FontWeight,
 ) {
     if (slice.action == Constants.SwipeAction.APP && slice.app.packageName.isNotBlank()) {
         SwipeHintAppIcon(
             app = slice.app,
             iconPackName = iconPackName,
             iconCache = iconCache,
+            showAppIcons = showAppIcons,
+            showAppNames = showAppNames,
+            hintFontSize = hintFontSize,
+            appNameColor = appNameColor,
+            appNameFontWeight = appNameFontWeight,
         )
         return
     }
@@ -299,8 +317,11 @@ private fun SwipeHintSliceContent(
     if (label.isNotEmpty()) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = appNameFontWeight,
+                fontSize = (MaterialTheme.typography.labelLarge.fontSize.value * hintFontSize).sp,
+            ),
+            color = appNameColor,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -313,6 +334,11 @@ private fun SwipeHintAppIcon(
     app: AppPreference,
     iconPackName: String,
     iconCache: IconCache,
+    showAppIcons: Boolean,
+    showAppNames: Boolean,
+    hintFontSize: Float,
+    appNameColor: Color,
+    appNameFontWeight: FontWeight,
 ) {
     val context = LocalContext.current
     var icon by remember(app.packageName, app.activityClassName, app.userString) {
@@ -331,21 +357,42 @@ private fun SwipeHintAppIcon(
     }
 
     val loadedIcon = icon
-    if (loadedIcon != null) {
-        Image(
-            bitmap = loadedIcon,
-            contentDescription = app.label,
-            modifier = Modifier.size(44.dp),
-        )
-    } else {
-        Text(
-            text = app.label.ifBlank { "App" },
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (showAppIcons) {
+            if (loadedIcon != null) {
+                Image(
+                    bitmap = loadedIcon,
+                    contentDescription = app.label,
+                    modifier = Modifier.size(if (showAppNames) 34.dp else 44.dp),
+                )
+            } else if (!showAppNames) {
+                Text(
+                    text = app.label.ifBlank { "App" },
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = appNameFontWeight,
+                        fontSize = (MaterialTheme.typography.labelLarge.fontSize.value * hintFontSize).sp,
+                    ),
+                    color = appNameColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (showAppNames) {
+            Text(
+                text = app.label.ifBlank { "App" },
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = appNameFontWeight,
+                    fontSize = (MaterialTheme.typography.labelSmall.fontSize.value * hintFontSize).sp,
+                ),
+                color = appNameColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }
 
