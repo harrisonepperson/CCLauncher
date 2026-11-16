@@ -128,6 +128,97 @@ class AppSettingsRepository(private val context: Context) {
     suspend fun getSwipeLeftApp(): AppPreference = settings.first().swipeLeftApp
     suspend fun getSwipeRightApp(): AppPreference = settings.first().swipeRightApp
 
+    suspend fun setSwipePieDirectionCount(twoFinger: Boolean, count: Int) {
+        val safeCount = count.takeIf { it == 4 || it == 6 || it == 8 } ?: 4
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(directionCount = safeCount))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(directionCount = safeCount))
+            }
+        }
+    }
+
+    suspend fun setSwipePieShowHintsOnHold(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showHintsOnHold = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showHintsOnHold = enabled))
+            }
+        }
+    }
+
+    suspend fun setSwipePieShowAppIcons(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showAppIcons = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showAppIcons = enabled))
+            }
+        }
+    }
+
+    suspend fun setSwipePieShowAppNames(twoFinger: Boolean, enabled: Boolean) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(showAppNames = enabled))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(showAppNames = enabled))
+            }
+        }
+    }
+
+    suspend fun setSwipePieHintFontSize(twoFinger: Boolean, size: Float) {
+        repo.update { s ->
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = s.twoFingerSwipePie.copy(hintFontSize = size))
+            } else {
+                s.copy(oneFingerSwipePie = s.oneFingerSwipePie.copy(hintFontSize = size))
+            }
+        }
+    }
+
+    suspend fun setSwipePieSliceAction(
+        twoFinger: Boolean,
+        count: Int,
+        index: Int,
+        action: Int,
+    ) {
+        updateSwipePieSlice(twoFinger, count, index) { it.copy(action = action) }
+    }
+
+    suspend fun setSwipePieSliceApp(
+        twoFinger: Boolean,
+        count: Int,
+        index: Int,
+        app: AppPreference,
+    ) {
+        updateSwipePieSlice(twoFinger, count, index) {
+            it.copy(action = Constants.SwipeAction.APP, app = app)
+        }
+    }
+
+    private suspend fun updateSwipePieSlice(
+        twoFinger: Boolean,
+        count: Int,
+        index: Int,
+        transform: (SwipePieSliceConfig) -> SwipePieSliceConfig,
+    ) {
+        val safeCount = count.takeIf { it == 4 || it == 6 || it == 8 } ?: 4
+        repo.update { s ->
+            val current = if (twoFinger) s.twoFingerSwipePie else s.oneFingerSwipePie
+            val key = "$safeCount:$index"
+            val updatedSlice = transform(current.slices[key] ?: SwipePieSliceConfig())
+            val updated = current.copy(slices = current.slices + (key to updatedSlice))
+            if (twoFinger) {
+                s.copy(twoFingerSwipePie = updated)
+            } else {
+                s.copy(oneFingerSwipePie = updated)
+            }
+        }
+    }
+
     suspend fun setSettingsLock(locked: Boolean) = repo.set("lockSettings", locked)
 
     /**

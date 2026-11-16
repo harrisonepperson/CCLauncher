@@ -76,6 +76,7 @@ fun CLauncherNavigation(
     val isOnHome = backStack.size == 1 && backStack.lastOrNull() == homeDestination
 
     var currentSelectionType by remember { mutableStateOf<AppSelectionType?>(null) }
+    var currentSwipePieTarget by remember { mutableStateOf<SwipePieTarget?>(null) }
     var didSyncHome by remember { mutableStateOf(false) }
 
     fun popToHome(clearSelection: Boolean = true) {
@@ -87,7 +88,10 @@ fun CLauncherNavigation(
             backStack.add(homeDestination)
         }
         settingsViewModel.resetUnlockState()
-        if (clearSelection) currentSelectionType = null
+        if (clearSelection) {
+            currentSelectionType = null
+            currentSwipePieTarget = null
+        }
     }
 
     fun navigateTo(dest: LauncherDestination, clearSelection: Boolean = true) {
@@ -126,6 +130,7 @@ fun CLauncherNavigation(
 
             is UiEvent.NavigateToAppSelection -> {
                 currentSelectionType = event.selectionType
+                currentSwipePieTarget = event.swipePieTarget
                 navigateTo(LauncherDestination.AppDrawer, false)
             }
 
@@ -232,6 +237,7 @@ fun CLauncherNavigation(
                         AppSelectionType.TWO_FINGER_SWIPE_DOWN_APP -> "Select Two-Finger Swipe Down App"
                         AppSelectionType.TWO_FINGER_SWIPE_LEFT_APP -> "Select Two-Finger Swipe Left App"
                         AppSelectionType.TWO_FINGER_SWIPE_RIGHT_APP -> "Select Two-Finger Swipe Right App"
+                        AppSelectionType.SWIPE_PIE_APP -> "Select Swipe Action App"
                         null -> ""
                     },
                     onSwipeDown = { navigateTo(LauncherDestination.Home) },
@@ -246,9 +252,13 @@ fun CLauncherNavigation(
                                 AppSelectionType.TWO_FINGER_SWIPE_DOWN_APP -> viewModel.selectedApp(app, Constants.FLAG_SET_TWO_FINGER_SWIPE_DOWN_APP)
                                 AppSelectionType.TWO_FINGER_SWIPE_LEFT_APP -> viewModel.selectedApp(app, Constants.FLAG_SET_TWO_FINGER_SWIPE_LEFT_APP)
                                 AppSelectionType.TWO_FINGER_SWIPE_RIGHT_APP -> viewModel.selectedApp(app, Constants.FLAG_SET_TWO_FINGER_SWIPE_RIGHT_APP)
+                                AppSelectionType.SWIPE_PIE_APP -> currentSwipePieTarget?.let { target ->
+                                    viewModel.selectedSwipePieApp(app, target)
+                                }
                                 else -> {}
                             }
                             currentSelectionType = null
+                            currentSwipePieTarget = null
                             navigateTo(LauncherDestination.Settings)
                         } else {
                             viewModel.launchApp(app)

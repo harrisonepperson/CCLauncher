@@ -111,6 +111,30 @@ class SettingsViewModel(
         updateSetting(propertyName, newValue)
     }
 
+    suspend fun setSwipePieDirectionCount(twoFinger: Boolean, count: Int) {
+        settingsRepository.setSwipePieDirectionCount(twoFinger, count)
+    }
+
+    suspend fun setSwipePieShowHintsOnHold(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowHintsOnHold(twoFinger, enabled)
+    }
+
+    suspend fun setSwipePieShowAppIcons(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowAppIcons(twoFinger, enabled)
+    }
+
+    suspend fun setSwipePieShowAppNames(twoFinger: Boolean, enabled: Boolean) {
+        settingsRepository.setSwipePieShowAppNames(twoFinger, enabled)
+    }
+
+    suspend fun setSwipePieHintFontSize(twoFinger: Boolean, size: Float) {
+        settingsRepository.setSwipePieHintFontSize(twoFinger, size)
+    }
+
+    suspend fun setSwipePieSliceAction(twoFinger: Boolean, count: Int, index: Int, action: Int) {
+        settingsRepository.setSwipePieSliceAction(twoFinger, count, index, action)
+    }
+
     suspend fun willGridChangeAffectItems(propertyName: String, newValue: Int): Boolean {
         val currentSettings = settingsState.value
         val currentLayout = settingsRepository.getHomeLayout().first()

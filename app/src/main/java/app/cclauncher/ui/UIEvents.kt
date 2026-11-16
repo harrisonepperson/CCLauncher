@@ -20,7 +20,10 @@ sealed class UiEvent {
 
     // System events
     data class ShowToast(val message: String) : UiEvent()
-    data class NavigateToAppSelection(val selectionType: AppSelectionType) : UiEvent()
+    data class NavigateToAppSelection(
+        val selectionType: AppSelectionType,
+        val swipePieTarget: SwipePieTarget? = null,
+    ) : UiEvent()
 
 
     data object NavigateToWidgetPicker : UiEvent()
@@ -39,4 +42,11 @@ enum class AppSelectionType {
     TWO_FINGER_SWIPE_RIGHT_APP,
     TWO_FINGER_SWIPE_UP_APP,
     TWO_FINGER_SWIPE_DOWN_APP,
+    SWIPE_PIE_APP,
 }
+
+data class SwipePieTarget(
+    val twoFinger: Boolean,
+    val directionCount: Int,
+    val sliceIndex: Int,
+)

@@ -727,6 +727,14 @@ data class AppSettings(
     @Serialized
     val twoFingerSwipeRightApp: AppPreference = AppPreference(),
 
+    @Persisted(key = "ONE_FINGER_SWIPE_PIE")
+    @Serialized
+    val oneFingerSwipePie: SwipePieConfig = SwipePieConfig(),
+
+    @Persisted(key = "TWO_FINGER_SWIPE_PIE")
+    @Serialized
+    val twoFingerSwipePie: SwipePieConfig = SwipePieConfig(),
+
     @Persisted(key = "FIRST_OPEN") val firstOpen: Boolean = true,
     @Persisted(key = "FIRST_OPEN_TIME") val firstOpenTime: Long = 0L,
     @Persisted(key = "FIRST_SETTINGS_OPEN") val firstSettingsOpen: Boolean = true,
@@ -768,6 +776,28 @@ data class AppPreference(
     val isSystemShortcut: Boolean = false,
     val systemShortcutId: String? = null,
     val systemShortcutPackage: String? = null
+)
+
+/**
+ * One configurable slice of the swipe-action pie.
+ *
+ * The 4-direction pie is backed by the existing swipe settings; these configs
+ * store the additional slices shown in the 6- and 8-direction layouts.
+ */
+@Serializable
+data class SwipePieSliceConfig(
+    val action: Int = Constants.SwipeAction.NULL,
+    val app: AppPreference = AppPreference(),
+)
+
+@Serializable
+data class SwipePieConfig(
+    val directionCount: Int = 4,
+    val slices: Map<String, SwipePieSliceConfig> = emptyMap(),
+    val showHintsOnHold: Boolean = false,
+    val showAppIcons: Boolean = true,
+    val showAppNames: Boolean = false,
+    val hintFontSize: Float = 1.0f,
 )
 
 data class AppKeyMigration(

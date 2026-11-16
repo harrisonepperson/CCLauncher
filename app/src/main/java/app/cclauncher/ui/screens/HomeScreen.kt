@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -54,6 +57,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -67,6 +71,9 @@ import app.cclauncher.helper.getScreenDimensions
 import app.cclauncher.helper.showToast
 import app.cclauncher.helper.withResolvedUser
 import app.cclauncher.settings.AppSettings
+import app.cclauncher.settings.swipePieDirectionCount
+import app.cclauncher.settings.swipePieIndexForAngle
+import app.cclauncher.settings.swipePieSlice
 import app.cclauncher.ui.composables.HomeAppItem
 import app.cclauncher.ui.composables.WidgetHostViewContainer
 import app.cclauncher.ui.composables.WidgetSizeData
@@ -78,6 +85,14 @@ import app.cclauncher.ui.viewmodels.SettingsViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private data class SwipeHintState(
+    val center: Offset,
+    val directionCount: Int,
+    val twoFinger: Boolean,
+    val screenSize: IntSize,
+    val pointer: Offset,
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
@@ -88,6 +103,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
 ) {
     val context = LocalContext.current
+    val uiDensity = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
     val homeLayoutState by viewModel.homeLayoutState.collectAsState()
     val settings by settingsViewModel.settingsState.collectAsState()
@@ -137,48 +153,81 @@ fun HomeScreen(
         }
     }
 
-    val onSwipe: (SwipeGesture) -> Unit = { gesture ->
-        if (gesture.fingers >= 2) {
-            when (gesture.direction) {
-                SwipeDirection.Up -> handleSwipeAction(settings.twoFingerSwipeUpAction) {
-                    viewModel.launchTwoFingerSwipeUpApp()
-                }
-                SwipeDirection.Down -> handleSwipeAction(settings.twoFingerSwipeDownAction) {
-                    viewModel.launchTwoFingerSwipeDownApp()
-                }
-                SwipeDirection.Left -> handleSwipeAction(settings.twoFingerSwipeLeftAction) {
-                    viewModel.launchTwoFingerSwipeLeftApp()
-                }
-                SwipeDirection.Right -> handleSwipeAction(settings.twoFingerSwipeRightAction) {
-                    viewModel.launchTwoFingerSwipeRightApp()
-                }
+    // Long-press hints are enabled per finger count. The hint shown on a hold
+    // matches the number of fingers used.
+    val oneFingerHintsEnabled = settings.oneFingerSwipePie.showHintsOnHold
+    val twoFingerHintsEnabled = settings.twoFingerSwipePie.showHintsOnHold
+    val hintsEnabled = oneFingerHintsEnabled || twoFingerHintsEnabled
+    val hintAppNameColor = if (settings.useCustomTextColor && settings.textColor != 0) {
+        Color(settings.textColor)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val hintAppNameFontWeight = remember(settings.fontWeight) {
+        when (settings.fontWeight) {
+            0 -> FontWeight.Thin
+            1 -> FontWeight.Light
+            2 -> FontWeight.Normal
+            3 -> FontWeight.Medium
+            4 -> FontWeight.Bold
+            5 -> FontWeight.Black
+            else -> FontWeight.Normal
+        }
+    }
+    var swipeHint by remember { mutableStateOf<SwipeHintState?>(null) }
+
+    fun performPieSlice(twoFinger: Boolean, sliceIndex: Int) {
+        val slice = swipePieSlice(settings, twoFinger, sliceIndex)
+        handleSwipeAction(slice.action) {
+            viewModel.launchSwipePieApp(slice.app)
+        }
+    }
+
+    fun hintSlices(hint: SwipeHintState) =
+        (0 until hint.directionCount).map { index ->
+            swipePieSlice(settings, hint.twoFinger, index)
+        }
+
+    fun commitSwipeHint(pointer: Offset, screenSize: IntSize) {
+        val hint = swipeHint ?: return
+        val slices = hintSlices(hint)
+        val geometry = swipeHintGeometry(hint.center, screenSize, uiDensity)
+        when (val hit = swipeHintHit(pointer, geometry, hint.directionCount, slices)) {
+            is SwipeHintHit.Slice -> {
+                swipeHint = null
+                performPieSlice(hint.twoFinger, hit.index)
             }
-        } else {
-            when (gesture.direction) {
-                SwipeDirection.Up -> handleSwipeAction(settings.swipeUpAction) {
-                    viewModel.launchSwipeUpApp()
-                }
-                SwipeDirection.Down -> handleSwipeAction(settings.swipeDownAction) {
-                    viewModel.launchSwipeDownApp()
-                }
-                SwipeDirection.Left -> {
-                    if (homeLayoutState.pageCount > 1) {
-                        goToNextPage()
-                    } else {
-                        handleSwipeAction(settings.swipeLeftAction) {
-                            viewModel.launchSwipeLeftApp()
-                        }
-                    }
-                }
-                SwipeDirection.Right -> {
-                    if (homeLayoutState.pageCount > 1) {
-                        goToPreviousPage()
-                    } else {
-                        handleSwipeAction(settings.swipeRightAction) {
-                            viewModel.launchSwipeRightApp()
-                        }
-                    }
-                }
+
+            SwipeHintHit.Center -> {
+                swipeHint = null
+                onNavigateToSettings()
+            }
+
+            SwipeHintHit.None -> swipeHint = null
+        }
+    }
+
+    val onSwipe: (SwipeGesture) -> Unit = onSwipe@{ gesture ->
+        // While the hint is up, releasing the finger picks the action.
+        if (swipeHint != null) return@onSwipe
+
+        val twoFinger = gesture.fingers >= 2
+        val config = if (twoFinger) settings.twoFingerSwipePie else settings.oneFingerSwipePie
+        val directionCount = swipePieDirectionCount(config)
+        val sliceIndex = swipePieIndexForAngle(gesture.angleDegrees, directionCount)
+        val slice = swipePieSlice(settings, twoFinger, sliceIndex)
+
+        // Keep the original horizontal page navigation as a fallback when the
+        // cardinal slices are unassigned; configured actions take precedence.
+        val pageFallback = !twoFinger &&
+            directionCount == 4 &&
+            slice.action == Constants.SwipeAction.NULL &&
+            homeLayoutState.pageCount > 1
+        when {
+            pageFallback && gesture.direction == SwipeDirection.Left -> goToNextPage()
+            pageFallback && gesture.direction == SwipeDirection.Right -> goToPreviousPage()
+            else -> handleSwipeAction(slice.action) {
+                viewModel.launchSwipePieApp(slice.app)
             }
         }
     }
@@ -255,6 +304,43 @@ fun HomeScreen(
                 },
                 onSwipe = onSwipe,
                 gestureSensitivity = settings.gestureSensitivity,
+                hintsEnabled = hintsEnabled,
+                hintVisible = swipeHint != null,
+                isSwipeHintActive = { swipeHint != null },
+                onShowSwipeHint = { offset, screenSize, pointerCount ->
+                    val twoFingerPressed = pointerCount >= 2
+                    // When both hint modes are enabled the finger count decides.
+                    // With only one mode enabled, that mode is used regardless.
+                    val twoFinger = when {
+                        twoFingerPressed && twoFingerHintsEnabled -> true
+                        !twoFingerPressed && oneFingerHintsEnabled -> false
+                        twoFingerHintsEnabled -> true
+                        oneFingerHintsEnabled -> false
+                        else -> null
+                    }
+                    if (twoFinger == null) {
+                        onNavigateToSettings()
+                    } else {
+                        val config = if (twoFinger) {
+                            settings.twoFingerSwipePie
+                        } else {
+                            settings.oneFingerSwipePie
+                        }
+                        swipeHint = SwipeHintState(
+                            center = offset,
+                            directionCount = swipePieDirectionCount(config),
+                            twoFinger = twoFinger,
+                            screenSize = screenSize,
+                            pointer = offset,
+                        )
+                    }
+                },
+                onSwipeHintHover = { pointer ->
+                    swipeHint = swipeHint?.copy(pointer = pointer)
+                },
+                onSwipeHintRelease = { pointer, screenSize ->
+                    commitSwipeHint(pointer, screenSize)
+                },
                 onMoveToPosition = { item, page, row, col ->
                     when (item) {
                         is HomeItem.Widget -> {
@@ -287,6 +373,40 @@ fun HomeScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 24.dp)
+            )
+        }
+
+        // Swipe hint overlay (long-press)
+        swipeHint?.let { hint ->
+            val slices = hintSlices(hint)
+            val hintConfig = if (hint.twoFinger) {
+                settings.twoFingerSwipePie
+            } else {
+                settings.oneFingerSwipePie
+            }
+            val geometry = swipeHintGeometry(hint.center, hint.screenSize, uiDensity)
+            val hit = swipeHintHit(hint.pointer, geometry, hint.directionCount, slices)
+            SwipeHintOverlay(
+                center = hint.center,
+                directionCount = hint.directionCount,
+                slices = slices,
+                iconPackName = settings.selectedIconPack,
+                showAppIcons = hintConfig.showAppIcons,
+                showAppNames = hintConfig.showAppNames,
+                hintFontSize = hintConfig.hintFontSize,
+                appNameColor = hintAppNameColor,
+                appNameFontWeight = hintAppNameFontWeight,
+                hoveredSliceIndex = (hit as? SwipeHintHit.Slice)?.index,
+                centerHovered = hit == SwipeHintHit.Center,
+                onSliceSelected = { index ->
+                    swipeHint = null
+                    performPieSlice(hint.twoFinger, index)
+                },
+                onSettingsClick = {
+                    swipeHint = null
+                    onNavigateToSettings()
+                },
+                onDismiss = { swipeHint = null },
             )
         }
 
@@ -401,6 +521,12 @@ private fun HomeScreenPage(
     onDoubleTap: () -> Unit,
     onSwipe: (SwipeGesture) -> Unit,
     gestureSensitivity: Float,
+    hintsEnabled: Boolean,
+    hintVisible: Boolean,
+    isSwipeHintActive: () -> Boolean,
+    onShowSwipeHint: (Offset, IntSize, Int) -> Unit,
+    onSwipeHintHover: (Offset) -> Unit,
+    onSwipeHintRelease: (Offset, IntSize) -> Unit,
     onMoveToPosition: (HomeItem, Int, Int, Int) -> Unit,
     onCancelMovement: () -> Unit
 ) {
@@ -413,14 +539,53 @@ private fun HomeScreenPage(
     val stableOnSwipe = remember {
         { gesture: SwipeGesture -> latestOnSwipe.value(gesture) }
     }
+    val latestHintVisible = rememberUpdatedState(hintVisible)
+    val latestHintsEnabled = rememberUpdatedState(hintsEnabled)
+    val latestShowHint = rememberUpdatedState(onShowSwipeHint)
+    val latestHintActive = rememberUpdatedState(isSwipeHintActive)
+    val latestHintHover = rememberUpdatedState(onSwipeHintHover)
+    val latestHintRelease = rememberUpdatedState(onSwipeHintRelease)
+    val activePointerCount = remember { intArrayOf(1) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .detectSwipeGestures(
                 sensitivity = gestureSensitivity,
+                shouldIgnoreConsumed = { latestHintVisible.value },
                 onSwipe = stableOnSwipe
             )
+            .pointerInput(hintsEnabled, homeLayout, page) {
+                if (!hintsEnabled) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    activePointerCount[0] = 1
+                    if (findWidgetAtPosition(homeLayout, down.position, size, page) != null ||
+                        findAppAtPosition(homeLayout, down.position, size, page) != null
+                    ) {
+                        return@awaitEachGesture
+                    }
+
+                    var lastPosition = down.position
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        lastPosition = change.position
+                        val pressedCount = event.changes.count { it.pressed }
+                        if (pressedCount > 0) {
+                            activePointerCount[0] = pressedCount
+                        }
+                        if (latestHintActive.value()) {
+                            latestHintHover.value(lastPosition)
+                        }
+                        if (!change.pressed) break
+                    }
+
+                    if (latestHintActive.value()) {
+                        latestHintRelease.value(lastPosition, size)
+                    }
+                }
+            }
             .pointerInput(widgetBeingMoved, appBeingMoved) {
                 detectTapGestures(
                     onDoubleTap = { onDoubleTap() },
@@ -442,7 +607,11 @@ private fun HomeScreenPage(
                             return@detectTapGestures
                         }
 
-                        onEmptyLongPress()
+                        if (latestHintsEnabled.value) {
+                            latestShowHint.value(offset, size, activePointerCount[0])
+                        } else {
+                            onEmptyLongPress()
+                        }
                     },
                     onTap = { offset ->
                         if (isMoving) {

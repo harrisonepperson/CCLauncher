@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.max
 
 enum class SwipeDirection { Up, Down, Left, Right }
@@ -14,10 +15,20 @@ enum class SwipeDirection { Up, Down, Left, Right }
 data class SwipeGesture(
     val direction: SwipeDirection,
     val fingers: Int,
+    /** Drag direction in degrees using screen coordinates (0 = right, 90 = down). */
+    val angleDegrees: Float = direction.defaultAngleDegrees(),
 )
+
+private fun SwipeDirection.defaultAngleDegrees(): Float = when (this) {
+    SwipeDirection.Up -> -90f
+    SwipeDirection.Right -> 0f
+    SwipeDirection.Down -> 90f
+    SwipeDirection.Left -> 180f
+}
 
 fun Modifier.detectSwipeGestures(
     sensitivity: Float = 1.0f,
+    shouldIgnoreConsumed: () -> Boolean = { false },
     onSwipe: (SwipeGesture) -> Unit,
 ): Modifier = this.then(
     Modifier.pointerInput(sensitivity) {
@@ -37,7 +48,9 @@ fun Modifier.detectSwipeGestures(
                 val pressed = event.changes.filter { it.pressed }
                 if (pressed.isEmpty()) break
 
-                if (event.changes.any { it.isConsumed && it.positionChanged() }) {
+                if (!shouldIgnoreConsumed() &&
+                    event.changes.any { it.isConsumed && it.positionChanged() }
+                ) {
                     return@awaitEachGesture
                 }
 
@@ -88,10 +101,14 @@ fun Modifier.detectSwipeGestures(
                 } else {
                     if (totalDrag.y > 0) SwipeDirection.Down else SwipeDirection.Up
                 }
+                val angleDegrees = Math.toDegrees(
+                    atan2(totalDrag.y.toDouble(), totalDrag.x.toDouble())
+                ).toFloat()
                 onSwipe(
                     SwipeGesture(
                         direction = direction,
                         fingers = if (maxPointerCount >= 2) 2 else 1,
+                        angleDegrees = angleDegrees,
                     )
                 )
             }

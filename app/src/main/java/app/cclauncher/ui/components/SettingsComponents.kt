@@ -69,6 +69,7 @@ fun SettingsItem(
     enabled: Boolean = true,
     onClick: () -> Unit,
     transparency: Float = 1.0f,
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier
@@ -77,25 +78,37 @@ fun SettingsItem(
             .padding(vertical = 8.dp)
             .alpha(if (enabled) transparency else 0.5f)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            if (subtitle != null) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
                 )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
-            if (description != null) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+            if (trailingContent != null) {
+                Box(modifier = Modifier.padding(start = 8.dp)) {
+                    trailingContent()
+                }
             }
         }
     }
