@@ -94,6 +94,27 @@ data class AppSettings(
     val autoOpenFilteredApp: Boolean = true,
 
     @Setting(
+        title = "Allow math results in search",
+        titleKey = CClauncherSettingsKeys.SETTING_ALLOW_MATH_RESULTS_IN_SEARCH,
+        category = General::class,
+        type = Toggle::class,
+        key = "ALLOW_MATH_RESULTS_IN_SEARCH",
+    )
+    val allowMathResults: Boolean = false,
+
+    @Setting(
+        title = "Treat ambiguous math inputs as math",
+        titleKey = CClauncherSettingsKeys.SETTING_TREAT_AMBIGUOUS_MATH_INPUTS_AS_MATH,
+        description = "If enabled, inputs like 's' or 'e' that could be the start of a math expression will not immediately resolve to a single matching app.",
+        descriptionKey = CClauncherSettingsKeys.SETTING_TREAT_AMBIGUOUS_MATH_INPUTS_AS_MATH_DESC,
+        category = General::class,
+        type = Toggle::class,
+        key = "TREAT_AMBIGUOUS_MATH_INPUTS_AS_MATH",
+        dependsOn = "allowMathResults",
+    )
+    val treatAmbiguousMathInputsAsMath: Boolean = false,
+
+    @Setting(
         title = "Search Type",
         titleKey = CClauncherSettingsKeys.SETTING_SEARCH_TYPE,
         category = General::class,
